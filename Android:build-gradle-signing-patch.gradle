@@ -1,0 +1,42 @@
+// ─────────────────────────────────────────────────────────────
+//  android/app/build.gradle — signing config addition
+//  After running `npx cap add android`, open this file and
+//  merge in the signingConfigs + release buildType below.
+//  Codemagic passes the keystore values as env vars automatically.
+// ─────────────────────────────────────────────────────────────
+
+android {
+
+    // ... your existing android { } block stays the same,
+    // just ADD these two sections:
+
+    signingConfigs {
+        release {
+            storeFile     file(project.findProperty("storeFile")     ?: "keystore.jks")
+            storePassword      project.findProperty("storePassword") ?: ""
+            keyAlias           project.findProperty("keyAlias")      ?: ""
+            keyPassword        project.findProperty("keyPassword")   ?: ""
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig         signingConfigs.release
+            minifyEnabled         false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  If you don't have a keystore yet, generate one with:
+//
+//  keytool -genkey -v \
+//    -keystore anistream.keystore \
+//    -alias anistream \
+//    -keyalg RSA -keysize 2048 \
+//    -validity 10000
+//
+//  Then upload it in:
+//  Codemagic → Your App → Code signing → Android keystores
+// ─────────────────────────────────────────────────────────────
