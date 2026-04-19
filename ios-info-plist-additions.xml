@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  This file documents the iOS Info.plist additions needed.
+  Xcode will generate the main Info.plist. Add these keys to it
+  after running: npx cap add ios
+  
+  Location: ios/App/App/Info.plist
+-->
+
+<!--
+  Add inside the <dict> tag of your Info.plist:
+-->
+
+<!--
+  Allow the app to load aniwatchtv.to without ATS issues:
+
+  <key>NSAppTransportSecurity</key>
+  <dict>
+    <key>NSExceptionDomains</key>
+    <dict>
+      <key>aniwatchtv.to</key>
+      <dict>
+        <key>NSExceptionAllowsInsecureHTTPLoads</key>
+        <false/>
+        <key>NSIncludesSubdomains</key>
+        <true/>
+        <key>NSExceptionMinimumTLSVersion</key>
+        <string>TLSv1.2</string>
+      </dict>
+    </dict>
+  </dict>
+
+  App display name:
+  <key>CFBundleDisplayName</key>
+  <string>AniWatch</string>
+
+  Landscape + Portrait support:
+  <key>UISupportedInterfaceOrientations</key>
+  <array>
+    <string>UIInterfaceOrientationPortrait</string>
+    <string>UIInterfaceOrientationLandscapeLeft</string>
+    <string>UIInterfaceOrientationLandscapeRight</string>
+  </array>
+
+  iPad orientations:
+  <key>UISupportedInterfaceOrientations~ipad</key>
+  <array>
+    <string>UIInterfaceOrientationPortrait</string>
+    <string>UIInterfaceOrientationPortraitUpsideDown</string>
+    <string>UIInterfaceOrientationLandscapeLeft</string>
+    <string>UIInterfaceOrientationLandscapeRight</string>
+  </array>
+-->

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Save this file as: android/app/src/main/res/xml/network_security_config.xml
+  after running: npx cap add android
+
+  Then reference it in android/app/src/main/AndroidManifest.xml
+  inside the <application> tag:
+
+  android:networkSecurityConfig="@xml/network_security_config"
+-->
+
+<network-security-config>
+  <domain-config cleartextTrafficPermitted="false">
+    <domain includeSubdomains="true">aniwatchtv.to</domain>
+    <trust-anchors>
+      <certificates src="system" />
+    </trust-anchors>
+  </domain-config>
+
+  <!-- Disallow cleartext for everything else -->
+  <base-config cleartextTrafficPermitted="false">
+    <trust-anchors>
+      <certificates src="system" />
+    </trust-anchors>
+  </base-config>
+</network-security-config>
