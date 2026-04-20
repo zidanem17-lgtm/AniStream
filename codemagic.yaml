@@ -32,8 +32,8 @@ workflows:
         script: |
           JAVA_DIR="android/app/src/main/java/com/anistream/app"
           mkdir -p "$JAVA_DIR"
-          cp android/AniStreamWebViewClient.java "$JAVA_DIR/AniStreamWebViewClient.java"
-          cp android/MainActivity-patch.java     "$JAVA_DIR/MainActivity.java"
+          cp android-src/AniStreamWebViewClient.java "$JAVA_DIR/AniStreamWebViewClient.java"
+          cp android-src/MainActivity-patch.java     "$JAVA_DIR/MainActivity.java"
 
       - name: Apply network security config
         script: |
@@ -97,7 +97,7 @@ workflows:
 
       - name: Copy content blocker
         script: |
-          cp ios/AniStreamContentBlocker.swift ios/App/App/AniStreamContentBlocker.swift
+          cp ios-src/AniStreamContentBlocker.swift ios/App/App/AniStreamContentBlocker.swift
           APPDELEGATE="ios/App/App/AppDelegate.swift"
           if ! grep -q "AniStreamContentBlocker" "$APPDELEGATE"; then
             sed -i '' 's/return true/AniStreamContentBlocker.apply(to: self.window!.rootViewController!.view.subviews.compactMap({ $0 as? WKWebView }).first!)\n        return true/' "$APPDELEGATE"
