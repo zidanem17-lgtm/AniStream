@@ -1,0 +1,172 @@
+workflows:
+
+  # ────────────────────────────────────────────────────────────
+  #  Android — debug APK, no keystore required, sideload-ready
+  # ────────────────────────────────────────────────────────────
+  android-build:
+    name: AniStream Android
+    max_build_duration: 60
+    instance_type: linux_x2
+
+    environment:
+      # No android_signing block — debug builds self-sign automatically
+      vars:
+        PACKAGE_NAME: com.anistream.app
+        APP_NAME: AniStream
+      node: 18
+      java: 17
+
+    scripts:
+      - name: Install dependencies
+        script: npm install
+
+      - name: Add Android platform
+        script: |
+          if [ ! -d "android/app/src/main" ]; then
+            npx cap add android
+          fi
+
+      - name: Copy WebViewClient & MainActivity
+        script: |
+          JAVA_DIR="android/app/src/main/java/com/anistream/app"
+          mkdir -p "$JAVA_DIR"
+          cp android/AniStreamWebViewClient.java "$JAVA_DIR/AniStreamWebViewClient.java"
+          cp android/MainActivity-patch.java     "$JAVA_DIR/MainActivity.java"
+
+      - name: Apply network security config
+        script: |
+          RES_DIR="android/app/src/main/res/xml"
+          mkdir -p "$RES_DIR"
+          cp android-network-security-config.xml "$RES_DIR/network_security_config.xml"
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          if ! grep -q "networkSecurityConfig" "$MANIFEST"; then
+            sed -i 's/<application/<application android:networkSecurityConfig="@xml\/network_security_config"/' "$MANIFEST"
+          fi
+
+      - name: Capacitor sync
+        script: npx cap sync android
+
+      # Debug build — no keystore needed, installs directly on any Android device
+      - name: Build debug APK
+        script: |
+          cd android
+          ./gradlew assembleDebug
+
+    artifacts:
+      - android/app/build/outputs/apk/debug/app-debug.apk
+
+    publishing:
+      email:
+        recipients:
+          - YOUR_EMAIL@example.com     # ← replace with your email
+        notify:
+          success: true
+          failure: true
+
+
+  # ────────────────────────────────────────────────────────────
+  #  iOS — unsigned build, no Apple Developer account required
+  #  Sideload the .ipa using AltStore or Sideloadly
+  # ────────────────────────────────────────────────────────────
+  ios-build:
+    name: AniStream iOS
+    max_build_duration: 60
+    instance_type: mac_mini_m1
+
+    environment:
+      # No ios_signing block — unsigned build for sideloading
+      vars:
+        XCODE_SCHEME: App
+        BUNDLE_ID: com.anistream.app
+        APP_NAME: AniStream
+      node: 18
+      xcode: latest
+      cocoapods: default
+
+    scripts:
+      - name: Install dependencies
+        script: npm install
+
+      - name: Add iOS platform
+        script: |
+          if [ ! -d "ios" ] || [ ! -f "ios/App/App.xcodeproj/project.pbxproj" ]; then
+            npx cap add ios
+          fi
+
+      - name: Copy content blocker
+        script: |
+          cp ios/AniStreamContentBlocker.swift ios/App/App/AniStreamContentBlocker.swift
+          APPDELEGATE="ios/App/App/AppDelegate.swift"
+          if ! grep -q "AniStreamContentBlocker" "$APPDELEGATE"; then
+            sed -i '' 's/return true/AniStreamContentBlocker.apply(to: self.window!.rootViewController!.view.subviews.compactMap({ $0 as? WKWebView }).first!)\n        return true/' "$APPDELEGATE"
+          fi
+
+      - name: Patch Info.plist
+        script: |
+          PLIST="ios/App/App/Info.plist"
+          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity dict" "$PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity:NSExceptionDomains dict" "$PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity:NSExceptionDomains:aniwatchtv.to dict" "$PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity:NSExceptionDomains:aniwatchtv.to:NSIncludesSubdomains bool true" "$PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName AniStream" "$PLIST" 2>/dev/null || \
+          /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string AniStream" "$PLIST"
+
+      - name: Install CocoaPods
+        script: |
+          cd ios/App
+          pod install --repo-update
+
+      - name: Capacitor sync
+        script: npx cap sync ios
+
+      # Unsigned build — skips all code signing, no Apple account needed
+      - name: Build unsigned iOS app
+        script: |
+          xcodebuild \
+            -workspace ios/App/App.xcworkspace \
+            -scheme "$XCODE_SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build/ios \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            EXPANDED_CODE_SIGN_IDENTITY="" | xcpretty
+
+      # Package into a sideloadable .ipa
+      - name: Package .ipa
+        script: |
+          APP_PATH=$(find build/ios -name "*.app" | head -1)
+          mkdir -p Payload
+          cp -r "$APP_PATH" Payload/
+          zip -r AniStream.ipa Payload/
+          rm -rf Payload
+
+    artifacts:
+      - AniStream.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      email:
+        recipients:
+          - YOUR_EMAIL@example.com     # ← replace with your email
+        notify:
+          success: true
+          failure: true
+
+
+  # ────────────────────────────────────────────────────────────
+  #  Trigger both workflows from one push to main
+  # ────────────────────────────────────────────────────────────
+  build-all:
+    name: AniStream — iOS + Android
+    max_build_duration: 90
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+    scripts:
+      - name: Trigger both workflows
+        script: echo "Trigger ios-build and android-build from Codemagic UI"
